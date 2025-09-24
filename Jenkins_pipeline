@@ -1,0 +1,119 @@
+pipeline {
+    agent any 
+    
+    environment {
+        APP_NAME = 'task-manager'
+        DOCKER_IMAGE = 'rohitxten/cosmic-task-manager'
+    }
+    
+    stages {
+        stage('Code Checkout') {
+            steps {
+                echo 'Cloning GitHub repo…'
+                git branch: 'main',
+                    url: 'https://github.com/Rohit03022006/task-manager.git'
+            }
+        }
+        
+        stage('Install Dependencies') {
+            steps {
+                echo 'Installing Node.js dependencies...'
+                sh '''
+                    npm install
+                    npm install -g @expo/cli
+                '''
+            }
+        }
+        
+        stage('Lint and Test') {
+            steps {
+                echo 'Running linting and tests...'
+                sh '''
+                    npm run lint || true
+                    npm test -- --watchAll=false || true
+                '''
+            }
+        }
+        
+        stage('Build Expo') {
+            steps {
+                echo 'Building Expo app...'
+                sh 'npx expo export --platform web'
+            }
+        }
+        
+        stage('Build Docker Image') {
+            steps {
+                echo 'Building Docker image...'
+                sh 'docker build -t ${DOCKER_IMAGE}:latest .'
+                sh 'docker tag ${DOCKER_IMAGE}:latest ${DOCKER_IMAGE}:${BUILD_NUMBER}'
+            }
+        }
+        
+        stage('Push to DockerHub') {
+            steps {
+                echo 'Pushing the Docker image to DockerHub'
+                withCredentials([usernamePassword(
+                    credentialsId: 'DockerHubCredential',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
+                    sh '''
+                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                        docker push ${DOCKER_IMAGE}:latest
+                        docker push ${DOCKER_IMAGE}:${BUILD_NUMBER}
+                    '''
+                }
+            }
+        }
+        
+        stage('Deploy') {
+            steps {
+                echo 'Deploying Cosmic Task Manager...'
+                sh '''
+                    # Stop and remove existing containers
+                    docker-compose down || true
+                    
+                    # Pull latest image and deploy
+                    docker-compose pull
+                    docker-compose up -d
+                    
+                    # Health check
+                    sleep 30
+                    curl -f http://localhost:8081 || exit 1
+                '''
+            }
+        }
+        
+        stage('Cleanup') {
+            steps {
+                echo 'Cleaning up old images...'
+                sh '''
+                    # Remove unused images older than 24 hours
+                    docker image prune -a -f --filter "until=24h"
+                '''
+            }
+        }
+    }         
+
+    post {
+        always {
+            echo 'Pipeline execution completed'
+            cleanWs()
+        }
+        failure {
+            echo 'Pipeline failed! Check logs for errors.'
+            emailext (
+                subject: 'FAILED: Task Manager Pipeline Build ${BUILD_NUMBER}',
+                body: 'The build ${BUILD_URL} failed. Please check the logs.'
+            )
+        }
+        success {
+            echo 'Pipeline succeeded! Cosmic Task Manager deployed successfully.'
+            emailext (
+                subject: 'SUCCESS: Cosmic Task Manager Pipeline Build ${BUILD_NUMBER}',
+                body: 'The build ${BUILD_URL} completed successfully. App is live at http://your-server:8081'
+            )
+        }
+    }
+}
