@@ -11,7 +11,7 @@ pipeline {
             steps {
                 echo 'Cloning GitHub repo…'
                 git branch: 'main',
-                    url: 'https://github.com/Rohit03022006/task-manager.git'
+                    url: 'https://github.com/Rohit03022006/Task-Manager-using-React-Native.git'
             }
         }
         
