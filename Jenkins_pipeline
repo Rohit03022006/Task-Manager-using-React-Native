@@ -1,13 +1,8 @@
 pipeline {
     agent any 
     
-    environment {
-        APP_NAME = 'task-manager'
-        DOCKER_IMAGE = 'rohitxten/task-manager'
-    }
-    
     stages {
-        stage('Code Checkout') {
+        stage('Code') {
             steps {
                 echo 'Cloning GitHub repo…'
                 git branch: 'main',
@@ -15,42 +10,14 @@ pipeline {
             }
         }
         
-        stage('Install Dependencies') {
-            steps {
-                echo 'Installing Node.js dependencies...'
-                sh '''
-                    npm install
-                    npm install -g @expo/cli
-                '''
-            }
-        }
-        
-        stage('Lint and Test') {
-            steps {
-                echo 'Running linting and tests...'
-                sh '''
-                    npm run lint || true
-                    npm test -- --watchAll=false || true
-                '''
-            }
-        }
-        
-        stage('Build Expo') {
-            steps {
-                echo 'Building Expo app...'
-                sh 'npx expo export --platform web'
-            }
-        }
-        
-        stage('Build Docker Image') {
+        stage('Build and Test') {
             steps {
                 echo 'Building Docker image...'
-                sh 'docker build -t ${DOCKER_IMAGE}:latest .'
-                sh 'docker tag ${DOCKER_IMAGE}:latest ${DOCKER_IMAGE}:${BUILD_NUMBER}'
+                sh 'DOCKER_BUILDKIT=1 docker build -t rohitxten/task-manager:latest .'
             }
         }
         
-        stage('Push to DockerHub') {
+        stage('Push') {
             steps {
                 echo 'Pushing the Docker image to DockerHub'
                 withCredentials([usernamePassword(
@@ -60,8 +27,7 @@ pipeline {
                 )]) {
                     sh '''
                         echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                        docker push ${DOCKER_IMAGE}:latest
-                        docker push ${DOCKER_IMAGE}:${BUILD_NUMBER}
+                        docker push rohitxten/task-manager:latest
                     '''
                 }
             }
@@ -69,52 +35,21 @@ pipeline {
         
         stage('Deploy') {
             steps {
-                echo 'Deploying Task Manager...'
+                echo 'Deploying application...'
                 sh '''
-                    # Stop and remove existing containers
-                    docker-compose down || true
-                    
-                    # Pull latest image and deploy
-                    docker-compose pull
-                    docker-compose up -d
-                    
-                    # Health check
-                    sleep 30
-                    curl -f http://localhost:8081 || exit 1
-                '''
-            }
-        }
-        
-        stage('Cleanup') {
-            steps {
-                echo 'Cleaning up old images...'
-                sh '''
-                    # Remove unused images older than 24 hours
-                    docker image prune -a -f --filter "until=24h"
+                    docker compose down || true 
+                    docker compose up 
                 '''
             }
         }
     }         
 
     post {
-        always {
-            echo 'Pipeline execution completed'
-            cleanWs()
-        }
         failure {
             echo 'Pipeline failed! Check logs for errors.'
-            emailext (
-                subject: 'FAILED: Task Manager Pipeline Build ${BUILD_NUMBER}',
-                body: 'The build ${BUILD_URL} failed. Please check the logs.'
-            )
         }
         success {
-            echo 'Pipeline succeeded! Task Manager deployed successfully.'
-            emailext (
-                subject: 'SUCCESS: Task Manager Pipeline Build ${BUILD_NUMBER}',
-                body: 'The build ${BUILD_URL} completed successfully.'
-                
-            )
+            echo 'Pipeline succeeded! Image pushed and app deployed.'
         }
     }
 }

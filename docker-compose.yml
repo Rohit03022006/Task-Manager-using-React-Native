@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  react-native:
+  task-manager:
     image: rohitxten/task-manager:latest
     ports:
       - "8081:8081"    
