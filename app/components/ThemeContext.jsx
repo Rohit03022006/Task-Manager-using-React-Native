@@ -18,7 +18,7 @@ export const ThemeProvider = ({ children }) => {
       text: isDarkMode ? '#ffffff' : '#000000',
       card: isDarkMode ? '#2d2d2d' : '#f5f5f5',
       border: isDarkMode ? '#404040' : '#dddddd',
-      primary: '#261ac9ff',
+      primary: '#9ac91aff',
       completed: isDarkMode ? '#34C759' : '#28a745',
       highPriority: '#FF3B30',
       mediumPriority: '#FF9500',

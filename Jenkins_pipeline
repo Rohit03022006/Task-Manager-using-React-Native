@@ -3,7 +3,7 @@ pipeline {
     
     environment {
         APP_NAME = 'task-manager'
-        DOCKER_IMAGE = 'rohitxten/cosmic-task-manager'
+        DOCKER_IMAGE = 'rohitxten/task-manager'
     }
     
     stages {
@@ -69,7 +69,7 @@ pipeline {
         
         stage('Deploy') {
             steps {
-                echo 'Deploying Cosmic Task Manager...'
+                echo 'Deploying Task Manager...'
                 sh '''
                     # Stop and remove existing containers
                     docker-compose down || true
@@ -109,10 +109,11 @@ pipeline {
             )
         }
         success {
-            echo 'Pipeline succeeded! Cosmic Task Manager deployed successfully.'
+            echo 'Pipeline succeeded! Task Manager deployed successfully.'
             emailext (
-                subject: 'SUCCESS: Cosmic Task Manager Pipeline Build ${BUILD_NUMBER}',
-                body: 'The build ${BUILD_URL} completed successfully. App is live at http://your-server:8081'
+                subject: 'SUCCESS: Task Manager Pipeline Build ${BUILD_NUMBER}',
+                body: 'The build ${BUILD_URL} completed successfully.'
+                
             )
         }
     }

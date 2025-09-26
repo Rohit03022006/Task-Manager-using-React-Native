@@ -2,13 +2,17 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-COPY package*.json ./
+# First, just copy and check package.json
+COPY package.json ./
 
+# Validate the package.json file
+RUN node -e "try { require('./package.json'); console.log('✅ package.json is valid') } catch(e) { console.error('❌ JSON Error:', e.message); process.exit(1) }"
+
+# Then install dependencies
 RUN npm install
 
 COPY . .
 
-RUN npm install -g @expo/cli
+EXPOSE 8081 19000 19001 19002
 
-EXPOSE 8081
-CMD ["npx", "run", "start"]
+CMD ["npx", "expo", "start", "--tunnel"]
